@@ -8,3 +8,5 @@ www.inps.it 15 360 0
 ssh 25 520 1
 
 unknown: 0
+
+interval: 5

@@ -57,7 +57,7 @@ class TrustEngine (threading.Thread):
                                 'and_or' : w[3]
                             }
                             l = config.readline()
-                    else:
+                    elif(words[0] == 'unknown:'):
                         unknown = words[1]
 
         UDP_IP = ''

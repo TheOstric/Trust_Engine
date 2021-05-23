@@ -6,6 +6,7 @@ from mitmproxy.tools.dump import DumpMaster
 from mitmproxy.script import concurrent
 import os
 import ssl
+import time
 #from dtls import do_patch
 
 #do_patch()
@@ -16,6 +17,8 @@ IP = ''
 PORT = 0
 IP_SEND = ''
 PORT_SEND = 0
+time_interval = 0
+time_stamp = 0
 
 def services_parses(domain_name):
     domain_names = {}
@@ -40,15 +43,19 @@ class MyProxy:
 
         #if (and only if) the host required by the device it's one of the hosts of the organization, contact the trust engine
         if services_parses(flow.request.host) == True :
-            
-            address = flow.client_conn.ip_address[0]
+            c_time = time.time()
+            if c_time - time_stamp >= time_interval:
+                
+                time_stamp += time_interval
+                
+                address = flow.client_conn.ip_address[0]
 
-            udpSoc.sendto(("http " + flow.request.host + " " + address ).encode(), (IP_SEND,PORT_SEND))
+                udpSoc.sendto(("http " + flow.request.host + " " + address ).encode(), (IP_SEND,PORT_SEND))
 
-            response, addr = udpResSoc.recvfrom(1024)
+                response, addr = udpResSoc.recvfrom(1024)
 
-            if response.decode() != 'Allowed' or addr[0] != IP_SEND :
-                flow.response = http.HTTPResponse.make(status_code=408)
+                if response.decode() != 'Allowed' or addr[0] != IP_SEND :
+                    flow.response = http.HTTPResponse.make(status_code=408)
 
 addon = MyProxy()
 
@@ -72,6 +79,11 @@ if(os.path.exists('./addresses.txt')) and os.path.getsize('./addresses.txt') > 0
         IP_SEND = l3[1]
         PORT_SEND = int(l3[3])
 
+if(os.path.exists('./config.txt')) and os.path.getsize('./config.txt') > 0:
+    with open('./config.txt') as config:
+        lines = config.readlines()
+        time_interval = lines[-1].split()[1]
+
 udpResSoc.bind((IP,PORT))
 
 opts = options.Options(listen_host=LISTEN_HOST, listen_port=8080)
@@ -80,9 +92,9 @@ m = DumpMaster(opts)
 m.server = proxy.server.ProxyServer(pconf)
 m.addons.add(addon)
 
-
 try:
     m.run()
+
 except KeyboardInterrupt:
     m.shutdown()
         
