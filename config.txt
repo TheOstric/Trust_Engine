@@ -1,0 +1,10 @@
+time_blacklist: 600
+
+chances: 5 600
+
+goals_list:
+inps.it 15 360 0
+www.inps.it 15 360 0
+ssh 25 520 1
+
+unknown: 0
