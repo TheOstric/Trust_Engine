@@ -19,6 +19,7 @@ IP_SEND = ''
 PORT_SEND = 0
 time_interval = 0
 time_stamp = 0
+udp_timeout = 0
 
 def services_parses(domain_name):
     domain_names = {}
@@ -82,6 +83,7 @@ if(os.path.exists('./addresses.txt')) and os.path.getsize('./addresses.txt') > 0
 if(os.path.exists('./config.txt')) and os.path.getsize('./config.txt') > 0:
     with open('./config.txt') as config:
         lines = config.readlines()
+        udp_timeout = lines[-2].split()[2]
         time_interval = lines[-1].split()[1]
 
 udpResSoc.bind((IP,PORT))

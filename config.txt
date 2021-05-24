@@ -9,4 +9,6 @@ ssh 25 520 1
 
 unknown: 0
 
+udp_timeout: 5
+
 interval: 5
