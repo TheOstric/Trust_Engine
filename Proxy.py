@@ -7,6 +7,7 @@ from mitmproxy.script import concurrent
 import os
 import ssl
 import time
+import parser
 #from dtls import do_patch
 
 #do_patch()
@@ -20,6 +21,7 @@ PORT_SEND = 0
 time_interval = 0
 time_stamp = 0
 udp_timeout = 0
+max_attempts = 0
 
 def services_parses(domain_name):
     domain_names = {}
@@ -53,12 +55,23 @@ class MyProxy:
 
                 udpSoc.sendto(("http " + flow.request.host + " " + address ).encode(), (IP_SEND,PORT_SEND))
 
-                response, addr = udpResSoc.recvfrom(1024)
+                while max_attempts > 0:
+                    try:
+                        response, addr = udpResSoc.recvfrom(1024)
+                        break
+                    except TimeoutError:
+                        udpSoc.sendto(("http " + flow.request.host + " " + address ).encode(), (IP_SEND,PORT_SEND))
+                    max_attempts -= 1
+                
+                if max_attempts == 0:
+                    flow.response = http.HTTPResponse.make(status_code=503)
 
                 if response.decode() != 'Allowed' or addr[0] != IP_SEND :
                     flow.response = http.HTTPResponse.make(status_code=408)
 
 addon = MyProxy()
+parser = parser.Parser()
+parser.parse()
 
 udpSoc = socket(AF_INET,SOCK_DGRAM)
 udpResSoc = socket(AF_INET,SOCK_DGRAM)
@@ -83,10 +96,12 @@ if(os.path.exists('./addresses.txt')) and os.path.getsize('./addresses.txt') > 0
 if(os.path.exists('./config.txt')) and os.path.getsize('./config.txt') > 0:
     with open('./config.txt') as config:
         lines = config.readlines()
-        udp_timeout = lines[-2].split()[2]
+        max_attempts = lines[-3].split()[1]
+        udp_timeout = lines[-2].split()[1]
         time_interval = lines[-1].split()[1]
 
 udpResSoc.bind((IP,PORT))
+udpResSoc.settimeout(udp_timeout)
 
 opts = options.Options(listen_host=LISTEN_HOST, listen_port=8080)
 pconf = proxy.config.ProxyConfig(opts)
