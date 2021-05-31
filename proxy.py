@@ -8,13 +8,9 @@ import os
 import ssl
 import time
 import parser
-import single_proxy
 import mitmproxy.http
 from threading import Lock
 import sys
-#from dtls import do_patch
-
-#do_patch()
 
 LISTEN_HOST= ''
 LISTEN_PORT = 0
@@ -27,6 +23,7 @@ time_stamp = 0
 max_attempts = 0
 time_interval = 0
 parsing = 'n'
+key = ''
 
 lock = Lock()
 
@@ -54,8 +51,7 @@ def services_parses(domain_name):
 
 udpSoc = socket.socket(AF_INET,SOCK_DGRAM)
 udpResSoc = socket.socket(AF_INET,SOCK_DGRAM)
-#udpSoc = ssl.wrap_socket(socket(AF_INET,SOCK_DGRAM))
-#udpResSoc =  ssl.wrap_socket(socket(AF_INET,SOCK_DGRAM))
+
 if(os.path.exists('./addresses.txt')) and os.path.getsize('./addresses.txt') > 0:
     with open('./addresses.txt') as addrs:
         lines = addrs.readlines()
@@ -79,6 +75,7 @@ if(os.path.exists('./config.txt')) and os.path.getsize('./config.txt') > 0:
         udp_timeout = int(lines[-3].split()[1])
         time_interval = int(lines[-1].split()[1])
         parsing = lines[-7].split()[1]
+        key = lines[-9].split()[1]
 
 if parsing == 'y':
     parser = parser.Parser()
@@ -114,7 +111,7 @@ def request(flow: http.HTTPFlow) -> None:
                 print(max_attempts)
                 try:
                     response, addr = udpResSoc.recvfrom(1024)
-                    if response.decode() != 'Allowed' or addr[0] != IP_SEND :
+                    if response.decode() != 'Allowed' + key or addr[0] != IP_SEND :
                         flow.kill()
                     break
                 except socket.timeout:

@@ -9,6 +9,8 @@ ssh 25 520 1
 
 unknown: 0
 
+key: password
+
 parsing: y
 
 max_attempts: 5

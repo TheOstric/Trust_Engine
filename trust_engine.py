@@ -61,6 +61,7 @@ class TrustEngine (threading.Thread):
                             l = config.readline()
                     elif(words[0] == 'unknown:'):
                         unknown = words[1]
+            key = lines[-9].split()[1]
 
         UDP_IP = ''
         UDP_PORT = 0
@@ -141,7 +142,7 @@ class TrustEngine (threading.Thread):
                                 if(word == splitted_request[1]):
                                     address = line.split()[1]
                                     log_file.save_on_log(IP_DEVICE,splitted_request[1] + ' ' + address,'Connection allowed','-')
-                                    sendSocket.sendto(str.encode('Allowed'),(IP,4567))
+                                    sendSocket.sendto(str.encode('Allowed' + key),(IP,4567))
                                     break
                         f.close()
                         #else:
