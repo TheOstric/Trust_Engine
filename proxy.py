@@ -1,6 +1,6 @@
 from mitmproxy import http
-import mitmproxy.http
 from socket import socket, AF_INET, SOCK_DGRAM
+import socket
 from mitmproxy import proxy, options
 from mitmproxy.tools.dump import DumpMaster
 from mitmproxy.script import concurrent
@@ -8,6 +8,10 @@ import os
 import ssl
 import time
 import parser
+import single_proxy
+import mitmproxy.http
+from threading import Lock
+import sys
 #from dtls import do_patch
 
 #do_patch()
@@ -18,13 +22,18 @@ IP = ''
 PORT = 0
 IP_SEND = ''
 PORT_SEND = 0
-time_interval = 0
-time_stamp = 0
 udp_timeout = 0
+time_stamp = 0
 max_attempts = 0
+time_interval = 0
+parsing = 'n'
+
+lock = Lock()
+
+domain_names = {}
 
 def services_parses(domain_name):
-    domain_names = {}
+    
     if len(domain_names) == 0:
         if(os.path.exists('./HTTPservices.txt')) and os.path.getsize('./HTTPservices.txt') > 0:
             with open('./HTTPservices.txt') as file_s:
@@ -39,42 +48,12 @@ def services_parses(domain_name):
         else:
             return False
 
-class MyProxy:
+#class MyProxy:
 
-    @concurrent
-    def request(self,flow: http.HTTPFlow) -> None:
+#addon = MyProxy()
 
-        #if (and only if) the host required by the device it's one of the hosts of the organization, contact the trust engine
-        if services_parses(flow.request.host) == True :
-            c_time = time.time()
-            if c_time - time_stamp >= time_interval:
-                
-                time_stamp += time_interval
-                
-                address = flow.client_conn.ip_address[0]
-
-                udpSoc.sendto(("http " + flow.request.host + " " + address ).encode(), (IP_SEND,PORT_SEND))
-
-                while max_attempts > 0:
-                    try:
-                        response, addr = udpResSoc.recvfrom(1024)
-                        break
-                    except TimeoutError:
-                        udpSoc.sendto(("http " + flow.request.host + " " + address ).encode(), (IP_SEND,PORT_SEND))
-                    max_attempts -= 1
-                
-                if max_attempts == 0:
-                    flow.response = http.HTTPResponse.make(status_code=503)
-
-                if response.decode() != 'Allowed' or addr[0] != IP_SEND :
-                    flow.response = http.HTTPResponse.make(status_code=408)
-
-addon = MyProxy()
-parser = parser.Parser()
-parser.parse()
-
-udpSoc = socket(AF_INET,SOCK_DGRAM)
-udpResSoc = socket(AF_INET,SOCK_DGRAM)
+udpSoc = socket.socket(AF_INET,SOCK_DGRAM)
+udpResSoc = socket.socket(AF_INET,SOCK_DGRAM)
 #udpSoc = ssl.wrap_socket(socket(AF_INET,SOCK_DGRAM))
 #udpResSoc =  ssl.wrap_socket(socket(AF_INET,SOCK_DGRAM))
 if(os.path.exists('./addresses.txt')) and os.path.getsize('./addresses.txt') > 0:
@@ -96,13 +75,58 @@ if(os.path.exists('./addresses.txt')) and os.path.getsize('./addresses.txt') > 0
 if(os.path.exists('./config.txt')) and os.path.getsize('./config.txt') > 0:
     with open('./config.txt') as config:
         lines = config.readlines()
-        max_attempts = lines[-3].split()[1]
-        udp_timeout = lines[-2].split()[1]
-        time_interval = lines[-1].split()[1]
+        max_attempts = int(lines[-5].split()[1])
+        udp_timeout = int(lines[-3].split()[1])
+        time_interval = int(lines[-1].split()[1])
+        parsing = lines[-7].split()[1]
+
+if parsing == 'y':
+    parser = parser.Parser()
+    parser.parse()
 
 udpResSoc.bind((IP,PORT))
 udpResSoc.settimeout(udp_timeout)
 
+@concurrent
+def request(flow: http.HTTPFlow) -> None:
+
+    global time_stamp, max_attempts
+
+    #if (and only if) the host required by the device it's one of the hosts of the organization, contact the trust engine
+    if services_parses(flow.request.host) == True :
+
+        c_time = int(time.time())
+
+        lock.acquire()
+        if c_time - time_stamp >= int(time_interval):
+            print(c_time - time_stamp)
+            if(time_stamp == 0):
+                time_stamp = c_time
+            else:
+                time_stamp += time_interval
+            lock.release()
+
+            address = flow.client_conn.ip_address[0]
+
+            udpSoc.sendto(("http " + flow.request.host + " " + address ).encode(), (IP_SEND,PORT_SEND))
+
+            while max_attempts > 0:
+                print(max_attempts)
+                try:
+                    response, addr = udpResSoc.recvfrom(1024)
+                    if response.decode() != 'Allowed' or addr[0] != IP_SEND :
+                        flow.kill()
+                    break
+                except socket.timeout:
+                    udpSoc.sendto(("http " + flow.request.host + " " + address ).encode(), (IP_SEND,PORT_SEND))
+                max_attempts -= 1
+            
+            if max_attempts == 0:
+                flow.kill()
+        else:
+            lock.release()
+                
+'''
 opts = options.Options(listen_host=LISTEN_HOST, listen_port=8080)
 pconf = proxy.config.ProxyConfig(opts)
 m = DumpMaster(opts)
@@ -114,4 +138,4 @@ try:
 
 except KeyboardInterrupt:
     m.shutdown()
-        
+'''

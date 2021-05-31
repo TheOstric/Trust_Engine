@@ -9,6 +9,8 @@ ssh 25 520 1
 
 unknown: 0
 
+parsing: y
+
 max_attempts: 5
 
 udp_timeout: 5

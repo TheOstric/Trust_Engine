@@ -132,4 +132,4 @@ class Parser():
                 goals["goal_achieved"] = targets.get(int(info_runs_keys[i]))
 
             with open('database.json','w') as json_file:
-                json_file.drop(info_runs,json_file)
+                json.dump(info_runs,json_file)

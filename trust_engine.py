@@ -14,6 +14,8 @@ import threading
 class TrustEngine (threading.Thread):
 
     requests = {}
+
+    #
     def __init__(self, lock, requests, condition):
         super(TrustEngine, self).__init__()
         self.requests = requests
