@@ -91,37 +91,24 @@ def request(flow: http.HTTPFlow) -> None:
 
     #if (and only if) the host required by the device it's one of the hosts of the organization, contact the trust engine
     if services_parses(flow.request.host) == True :
+        
+        address = flow.client_conn.ip_address[0]
 
-        c_time = int(time.time())
+        udpSoc.sendto(("http " + flow.request.host + " " + address ).encode(), (IP_SEND,PORT_SEND))
 
-        lock.acquire()
-        if c_time - time_stamp >= int(time_interval):
-            print(c_time - time_stamp)
-            if(time_stamp == 0):
-                time_stamp = c_time
-            else:
-                time_stamp += time_interval
-            lock.release()
-
-            address = flow.client_conn.ip_address[0]
-
-            udpSoc.sendto(("http " + flow.request.host + " " + address ).encode(), (IP_SEND,PORT_SEND))
-
-            while max_attempts > 0:
-                print(max_attempts)
-                try:
-                    response, addr = udpResSoc.recvfrom(1024)
-                    if response.decode() != 'Allowed' + key or addr[0] != IP_SEND :
-                        flow.kill()
-                    break
-                except socket.timeout:
-                    udpSoc.sendto(("http " + flow.request.host + " " + address ).encode(), (IP_SEND,PORT_SEND))
-                max_attempts -= 1
-            
-            if max_attempts == 0:
-                flow.kill()
-        else:
-            lock.release()
+        while max_attempts > 0:
+            print(max_attempts)
+            try:
+                response, addr = udpResSoc.recvfrom(1024)
+                if response.decode() != 'Allowed' + key or addr[0] != IP_SEND :
+                    flow.kill()
+                break
+            except socket.timeout:
+                udpSoc.sendto(("http " + flow.request.host + " " + address ).encode(), (IP_SEND,PORT_SEND))
+            max_attempts -= 1
+        
+        if max_attempts == 0:
+            flow.kill()
                 
 '''
 opts = options.Options(listen_host=LISTEN_HOST, listen_port=8080)

@@ -31,7 +31,10 @@ class Database:
                 for k, v in filtered_db_item.items():
                     #if there is an entry in the GOALS_LIST dictionary whose key is equals to the GOAL_ACHIEVED field 
                     #in the current entry of the filtered dictionary, there are needed controls about thresholds specified in the GOALS_LIST
-                    check = GOALS_LIST.get(v.get("goal_achieved"))
+                    '''
+                        DA CAPIRE COSA METTERE NELLA GET, OVVERO SE DOVER PRENDERE IL GOAL DA RAGGIUNGERE OPPURE IL SERVIZIO CUI SI VUOLE ACCEDERE
+                    '''
+                    check = GOALS_LIST.get()
                     if(check != None):
                         #the difference in those two if statements is that:
                         #in the first one, the boolean operator chosed to check the thresholds is an and
@@ -49,6 +52,8 @@ class Database:
                                 return 'Connection autorized'
                             else:
                                 return 'Success probability too high and time required too low'
+                    else:
+                        return 'Thresholds not specified'
             else:
                 return 'Connection autorized'
         else:

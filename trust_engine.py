@@ -1,10 +1,10 @@
 from socket import socket, AF_INET, SOCK_DGRAM
 import json   
-import Log 
+import log
 import time
 import os
-import Database
-import Blacklist
+import database
+import blacklist
 import threading
 import ssl
 from dtls import do_patch
@@ -31,12 +31,12 @@ class TrustEngine (threading.Thread):
         #->unknown
         #and into a file named services.txt, in which the various services to which a device could be connected 
         # and their IP addresses must be entered
-
-        do_patch()
+        
         goals_list = {}
         time_blacklist = 0
         chances = []
         unknown = 0
+        key = ''
 
         #In this loop the file is read and the variables, that will be used to decide the outcome
         #of a connection attempt, are initialized 
@@ -61,7 +61,9 @@ class TrustEngine (threading.Thread):
                             l = config.readline()
                     elif(words[0] == 'unknown:'):
                         unknown = words[1]
-            key = lines[-9].split()[1]
+                    if words[0] == 'key':
+                        key = words[1]
+            
 
         UDP_IP = ''
         UDP_PORT = 0
@@ -72,9 +74,9 @@ class TrustEngine (threading.Thread):
 
         ID_DEVICE = {} #deve essere riempito con l'inventario che descrive le carrattestiche del device che cerca di connettersi
 
-        log_file = Log.Log()
-        black_file = Blacklist.Blacklist()
-        db_file = Database.Database()
+        log_file = log.Log()
+        black_file = blacklist.Blacklist()
+        db_file = database.Database()
 
         if(os.path.exists('./addresses.txt')) and os.path.getsize('./addresses.txt') > 0:
             with open('./addresses.txt') as addrs:
@@ -88,21 +90,16 @@ class TrustEngine (threading.Thread):
                 IP = l2[1]
                 PORT_NUM = int(l2[3])
 
-        sendSocket =  ssl.wrap_socket(socket(AF_INET,SOCK_DGRAM))
-
-        #recSocket =  ssl.wrap_socket(socket(AF_INET,SOCK_DGRAM))
-        #recSocket.bind((UDP_IP,UDP_PORT))
+        sendSocket = socket(AF_INET,SOCK_DGRAM)
 
         while True:
-            #data = recSocket.recvfrom(1024)
 
             self.lock.acquire()
             while(len(self.requests) == 0):
                 self.condition.wait()
 
-            key = list(self.requests.keys())[0]
-            request = self.requests.get(key)
-            self.requests.pop(key)
+            request = self.requests[0]
+            self.requests.remove(request)
             self.lock.release()
             #splitted_request[0] -> type of service
             #splitted_request[1] -> domain name of service
@@ -129,11 +126,14 @@ class TrustEngine (threading.Thread):
                     #for all the goals that could be reached by an attack, starting from the device and passing to the service required
                     attempt_result = db_file.db_check(IP,splitted_request[1],goals_list)
 
-                    if(attempt_result != 'Connection autorized'):
-                        log_file.save_on_log(IP_DEVICE,splitted_request[1],'Connection denied',attempt_result)
-                        sendSocket.sendto(str.encode('Connection denied'),(IP,PORT_NUM))
+                    if (attempt_result != 'Connection autorized'):
+                        if attempt_result != 'Thresholds not specified':
+                            log_file.save_on_log(IP_DEVICE,splitted_request[1],'Connection denied',attempt_result)
+                            sendSocket.sendto(str.encode('Connection denied'),(IP,PORT_NUM))
+                        else:
+                            log_file.save_on_log(IP_DEVICE,splitted_request[1],'Connection denied',attempt_result)
+                            sendSocket.sendto(str.encode('Allowed' + key),(IP,PORT_NUM))
                     else: 
-                        #if(splitted_request[0] == 'http'):
                         #loop in which i parse the text to search for an IP that satisfies 
                         #the request of an http domain sent by the device
                         f = open("HTTPservices.txt","r")
@@ -142,7 +142,7 @@ class TrustEngine (threading.Thread):
                                 if(word == splitted_request[1]):
                                     address = line.split()[1]
                                     log_file.save_on_log(IP_DEVICE,splitted_request[1] + ' ' + address,'Connection allowed','-')
-                                    sendSocket.sendto(str.encode('Allowed' + key),(IP,4567))
+                                    sendSocket.sendto(str.encode('Allowed' + key),(IP,PORT_NUM))
                                     break
                         f.close()
                         #else:

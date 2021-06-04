@@ -2,6 +2,7 @@ import json
 import os
 import time
 import calendar
+import datetime
 
 class Blacklist:
     #The aim of this class is to check if the device that is attempting to connect to the system 
@@ -38,7 +39,7 @@ class Blacklist:
         ctime = time.localtime()
         self.black_items[IP] = {
             'insertion_time' : calendar.day_name[ctime[6]] + ', ' + str(ctime[0]) + '/' + str(ctime[1]) + '/' + str(ctime[2]) + ' ' + str(ctime[3]) + ':' + str(ctime[4]) + ':' + str(ctime[5]),
-            'insertion_s_time' : time.time()
+            'insertion_s_time' : int(datetime.datetime(ctime[0],ctime[1],ctime[2],ctime[3],ctime[4],ctime[5]).timestamp())
         }
 
         with open('./blacklist.json','w') as json_file:
