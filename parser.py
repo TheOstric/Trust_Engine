@@ -32,8 +32,21 @@ class Parser():
 
             ide = 0
             targets = {}
+            right_target = {}
             for i in range(len(threat_model)):
                 ide = threat_model[i].get("ID")
+                i_rights = threat_model[i].get("InitialRights")
+
+                initial_right = ""
+                for i in range(len(i_rights)):
+                    right_list = i_rights[i].get("RightList")
+                    where = i_rights[i].get("Where")
+                    for j in range(len(right_list)):
+                        initial_right = initial_right + right_list[j] + " "
+                    for j in range(len(where)):
+                        initial_right = initial_right + where[j].get("Item1") + " -> " + where[j].get("Item2") + ", "
+                    targets[ide] = initial_right
+
                 single_agent = threat_model[i].get("Target")
 
                 subtargets = single_agent.get("SubTargets")[0]
@@ -48,7 +61,7 @@ class Parser():
                         target = target + rights[j] + " "
                     for j in range(len(where)):
                         target = target + where[j].get("Item1") + " -> " + where[j].get("Item2") + ", "
-                    targets[ide] = target
+                    right_target[ide] = target
 
             run_keys = list(threat_run_details.keys())
             for i in range(len(run_keys)):
@@ -63,56 +76,57 @@ class Parser():
                         if  id_app != None:
                             find = True
                             ip_app = IPs.get(id_app)
-                            if info_runs.get(key) != None :
-                                if info_runs.get(key).get(ip_app) != None:
-                                    if runs[j].get("Successful") == True:
+                            if ip_app != None:
+                                if info_runs.get(key) != None :
+                                    if info_runs.get(key).get(ip_app) != None:
+                                        if runs[j].get("Successful") == True:
 
-                                        total = info_runs.get(key)[ip_app]["total"] + runs[j].get("Frequency")
-                                        
-                                        succ = info_runs.get(key)[ip_app]["successful"] + runs[j].get("Frequency")
+                                            total = info_runs.get(key)[ip_app]["total"] + runs[j].get("Frequency")
+                                            
+                                            succ = info_runs.get(key)[ip_app]["successful"] + runs[j].get("Frequency")
 
-                                        info_runs.get(key)[ip_app]["successful"] = succ
+                                            info_runs.get(key)[ip_app]["successful"] = succ
 
-                                        info_runs.get(key)[ip_app]["total"] = total
+                                            info_runs.get(key)[ip_app]["total"] = total
 
-                                        info_runs.get(key)[ip_app]["success_probability"] = int((succ / total) * 100)
+                                            info_runs.get(key)[ip_app]["success_probability"] = int((succ / total) * 100)
 
 
-                                        if runs[j].get("TotalTime") < info_runs.get(key)[ip_app]["time"]:
+                                            if runs[j].get("TotalTime") < info_runs.get(key)[ip_app]["time"]:
 
-                                            info_runs.get(key)[ip_app]["time"] = runs[j].get("TotalTime")
+                                                info_runs.get(key)[ip_app]["time"] = runs[j].get("TotalTime")
+
+                                        else:
+
+                                            info_runs.get(key)[ip_app]["total"] += runs[j].get("Frequency")
+
+                                            info_runs.get(key)[ip_app]["failures"] += runs[j].get("Frequency")
 
                                     else:
 
-                                        info_runs.get(key)[ip_app]["total"] += runs[j].get("Frequency")
+                                        succ = 0
+                                        fails = 0
+                                        total = 0
 
-                                        info_runs.get(key)[ip_app]["failures"] += runs[j].get("Frequency")
+                                        if runs[j].get("Successful") == True:
 
+                                            succ = runs[j].get("Frequency")
+
+                                        else:
+                                            
+                                            fails = runs[j].get("Frequency")
+                                        
+                                        total = succ + fails 
+                                        percentage = (succ/total) * 100
+                                        info_runs.get(key)[ip_app] = {
+                                            "successful" : succ,
+                                            "time" : runs[j].get("TotalTime"),
+                                            "failures" : fails,
+                                            "total" : total,
+                                            "success_probability" : int(percentage)
+                                        }
                                 else:
-
-                                    succ = 0
-                                    fails = 0
-                                    total = 0
-
-                                    if runs[j].get("Successful") == True:
-
-                                        succ = runs[j].get("Frequency")
-
-                                    else:
-                                        
-                                        fails = runs[j].get("Frequency")
-                                    
-                                    total = succ + fails 
-                                    percentage = (succ/total) * 100
-                                    info_runs.get(key)[ip_app] = {
-                                        "successful" : succ,
-                                        "time" : runs[j].get("TotalTime"),
-                                        "failures" : fails,
-                                        "total" : total,
-                                        "success_probability" : int(percentage)
-                                    }
-                            else:
-                                info_runs[key] = {}
+                                    info_runs[key] = {}
                         k += 1
 
             info_runs_keys = list(info_runs.keys())
@@ -129,7 +143,8 @@ class Parser():
                     single_goal.pop("failures")
                     single_goal.pop("total")
 
-                goals["goal_achieved"] = targets.get(int(info_runs_keys[i]))
+                goals["initial_rights"] = targets.get(int(info_runs_keys[i]))
+                goals["goal_achieved"] = right_target.get(int(info_runs_keys[i]))
 
             with open('database.json','w') as json_file:
                 json.dump(info_runs,json_file)

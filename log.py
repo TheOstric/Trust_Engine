@@ -2,6 +2,7 @@ import json
 import os
 import time
 import calendar
+import datetime
 
 #The aim of this class is to save the information about a device and its connection attempt in a JSON file
 class Log:
@@ -26,7 +27,7 @@ class Log:
     def save_on_log(self,IP_ADDRESS,GOAL,OUTCOME,OUTCOME_REASON):
         #ctime -> current_time expressed in yyyy/mm/dd hh:mm:ss
         ctime = time.localtime()
-        stime = int(time.time())
+        stime = int(datetime.datetime(ctime[0],ctime[1],ctime[2],ctime[3],ctime[4],ctime[5]).timestamp())
         self.log_items['device' + str(self.num)] = {
             'ip_address' : IP_ADDRESS,
             'time_stamp' : calendar.day_name[ctime[6]] + ', ' + str(ctime[0]) + '/' + str(ctime[1]) + '/' + str(ctime[2]) + ' ' + str(ctime[3]) + ':' + str(ctime[4]) + ':' + str(ctime[5]),
