@@ -18,7 +18,7 @@ class Database:
             with open('./database.json','r') as json_file:
                 self.db_item = json.load(json_file)
 
-    def db_check(self,INITIAL_RIGHTS,SERVICE_REQUIRED,GOALS_LIST):
+    def db_check(self,INITIAL_RIGHTS,SERVICE_REQUIRED,GOALS_LIST,UNKNOWN):
         #filetered version of the dictionary db_item, containing only the items in which the ID_DEVICE field is equals to 
         #the ID_DEVICE passed as argument (the ID_DEVICE of the device that is attempting to connect)
         #and the DESTINATION_SERVICE is equals to SERVICE_REQUIRED
@@ -31,10 +31,7 @@ class Database:
                 for k, v in filtered_db_item.items():
                     #if there is an entry in the GOALS_LIST dictionary whose key is equals to the GOAL_ACHIEVED field 
                     #in the current entry of the filtered dictionary, there are needed controls about thresholds specified in the GOALS_LIST
-                    '''
-                        DA CAPIRE COSA METTERE NELLA GET, OVVERO SE DOVER PRENDERE IL GOAL DA RAGGIUNGERE OPPURE IL SERVIZIO CUI SI VUOLE ACCEDERE
-                    '''
-                    check = GOALS_LIST.get()
+                    check = GOALS_LIST.get(v.get("goal_achieved"))
                     if(check != None):
                         #the difference in those two if statements is that:
                         #in the first one, the boolean operator chosed to check the thresholds is an and
@@ -57,5 +54,45 @@ class Database:
             else:
                 return 'Connection autorized'
         else:
-            return 'Connection autorized'
+            '''
+                PART USED WHEN INITIAL RIGHT OF THE DEVICE ARE UNKNOWN COMPARED ON THE PAST SIMULATIONS
+            ''' 
+
+            if UNKNOWN == 0:
+                succ_probability = 0
+                time_req = 0
+                goal_achieved = ""
+                for k, v in self.db_item.items():
+                    if SERVICE_REQUIRED in v:
+                        curr_succ = v.get(SERVICE_REQUIRED).get("success_probability")
+                        curr_time = v.get(SERVICE_REQUIRED).get("min_time")
+                        curr_goal = v.get("goal_achieved")
+                        if curr_succ > succ_probability and curr_time < time_req:
+                            succ_probability = curr_succ
+                            time_req = curr_time
+                            goal_achieved = curr_goal
+                
+                            
+                check = GOALS_LIST.get(goal_achieved)
+                if(check != None):
+                    #the difference in those two if statements is that:
+                    #in the first one, the boolean operator chosed to check the thresholds is an and
+                    #meanwhile, in the second one is an or
+                    #(the decision has been written in the AND_OR field of GOALS_LIST)
+                    if check.get("and_or") == str(0):
+                        if(check.get("max_prob") > v.get(SERVICE_REQUIRED).get("success_probability") and check.get("min_time") < v.get(SERVICE_REQUIRED).get("time_required")):
+                            return 'Connection autorized'
+                        elif(check.get("max_prob") <= v.get(SERVICE_REQUIRED).get("success_probability")):
+                            return 'Success probability upper than the threshold'
+                        else:
+                            return 'Success time required lower than the threshold'
+                    else:
+                        if(check.get("max_prob") > v.get(SERVICE_REQUIRED).get("success_probability") or check.get("min_time") < v.get(SERVICE_REQUIRED).get("time_required")):
+                            return 'Connection autorized'
+                        else:
+                            return 'Success probability too high and time required too low'
+                else:
+                    return 'Thresholds not specified'
+            else:
+                return 'Connection autorized'
                 

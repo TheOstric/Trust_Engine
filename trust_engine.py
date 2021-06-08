@@ -101,9 +101,11 @@ class TrustEngine (threading.Thread):
             request = self.requests[0]
             self.requests.remove(request)
             self.lock.release()
-            #splitted_request[0] -> type of service
-            #splitted_request[1] -> domain name of service
-            #splitted_request[2] -> ip of device
+            '''
+                splitted_request[0] -> type of service
+                splitted_request[1] -> domain name of service
+                splitted_request[2] -> ip of device
+            '''
             splitted_request = request.split()
             IP_DEVICE = splitted_request[2]
 
@@ -124,7 +126,7 @@ class TrustEngine (threading.Thread):
                     #corresponding to the device that is attempting to connect and the service required
                     #respects the thresholds inserted in the configuration file
                     #for all the goals that could be reached by an attack, starting from the device and passing to the service required
-                    attempt_result = db_file.db_check(IP,splitted_request[1],goals_list)
+                    attempt_result = db_file.db_check(IP,splitted_request[1],goals_list, unknown)
 
                     if (attempt_result != 'Connection autorized'):
                         if attempt_result != 'Thresholds not specified':
