@@ -1,0 +1,9 @@
+__pycache__/
+.addresses.txt
+.config.txt
+.HTTPservices.txt
+.auth.json
+.blacklist.json
+.database.json
+.log.json
+.pipefile

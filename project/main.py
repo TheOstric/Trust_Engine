@@ -20,8 +20,8 @@ data = ''
 r = ''
 confirmed = False
 db_item = {}
-username = "riccardoluzi"
-token = "s9XUyPZiOz3fFlCNWWopJta8VohqWX"
+username = "your textmagic username"
+token = "your textmagic token"
 client = TextmagicRestClient(username, token)
 app = Flask(__name__)
 
@@ -29,22 +29,13 @@ random_key = os.urandom(16)
 app.config.update(dict(
     DEBUG = True,
     SECRET_KEY = str(random_key),
-    MAIL_SERVER = "smtp.blu.it",
+    MAIL_SERVER = "your mail server",
     MAIL_PORT = 587,
     MAIL_USE_TLS = True,
     MAIL_USE_SSL = False,
-    MAIL_USERNAME = "riccardo.luzi@blu.it",
-    MAIL_PASSWORD = "Dr@gonero1",
+    MAIL_USERNAME = "your email",
+    MAIL_PASSWORD = "your email password",
 ))
-'''
-app.config['SECRET_KEY'] = str(random_key)
-app.config['MAIL_USE_SSL'] = True
-app.config['MAIL_USE_TLS'] = False
-app.config['MAIL_PORT'] = 456
-app.config['MAIL_SERVER'] = "smtp.blu.it"
-app.config['MAIL_USERNAME'] = "riccardo.luzi@blu.it"
-app.config['MAIL_PASSWORD'] = "Dr@gonero1"
-'''
 hfun = 'sha256'
 mail = Mail(app)
 
@@ -139,7 +130,7 @@ def login_email():
     #generating random token for authentication
     token = pyotp.random_base32()
 
-    msg = Message('Authentication mail with token',sender = 'riccardo.luzi@blu.it', recipients=['riccardoluzi2@gmail.com'])
+    msg = Message('Authentication mail with token',sender = 'sending mail address', recipients=['destination mail address'])
     link = url_for('confirm',external = True)
     msg.body = token
     mail.send(msg)
@@ -170,7 +161,7 @@ def login_email_auth():
 
 @app.route('/pass_auth/email_a')
 def login_sms():
-    msg = Message('Authentication mail',sender = 'riccardo.luzi@blu.it', recipients=['riccardoluzi2@gmail.com'])
+    msg = Message('Authentication mail',sender = 'sending mail address', recipients=['destination mail address'])
     link = url_for('confirm',external = True)
     msg.body = 'Please, click on the following link and then check your phone for the authentication code: {}'.format(link)
     mail.send(msg)
@@ -180,7 +171,7 @@ def login_sms():
 
 @app.route('/pass_auth/sms_a')
 def confirm():
-    msg = client.messages.create(phones= "+393938024398", text = "12345")
+    msg = client.messages.create(phones= "destination phone number", text = "12345")
     return render_template("login_email.html")
 
 if __name__ == '__main__':
