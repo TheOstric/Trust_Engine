@@ -1,7 +1,7 @@
 __pycache__/
 .addresses
 .config
-.HTTPservices
+HTTPservices
 .auth
 .blacklist
 .database
