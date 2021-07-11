@@ -1,4 +1,0 @@
-google.com 208.65.153.251
-inps.it 93.63.43.48
-www.inps.it 93.63.43.48
-elearning.di.unipi.it 131.114.73.164
