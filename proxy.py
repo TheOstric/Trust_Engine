@@ -12,12 +12,10 @@ import parser
 import mitmproxy.http
 import sys
 import requests
-import pipes
 import portalocker
 import datetime
 import proxy_worker
-
-pipe = pipes.Template()
+import fasteners
 
 LISTEN_HOST= ''
 LISTEN_PORT = 0
@@ -61,7 +59,7 @@ class MyProxy:
                 lines = config.readlines()
                 self.max_attempts = int(lines[-5].split()[1])
                 udp_timeout = int(lines[-3].split()[1])
-                time_interval = int(lines[-1].split()[1])
+                self.time_interval = int(lines[-1].split()[1])
                 parsing = lines[-7].split()[1]
                 key = lines[-9].split()[1]
 
@@ -71,7 +69,11 @@ class MyProxy:
 
         self.devices = {}
         self.lock = Lock()
+        self.filelock = Lock()
         udpSoc = socket.socket(AF_INET,SOCK_DGRAM)
+        self.a_lock = fasteners.InterProcessLock('./project/pipefile')
+        self.now = 0.0
+        self.c_time = 0.0
         self.worker = proxy_worker.ProxyWorker(self.lock,self.devices)
         self.worker.start()
 
@@ -106,28 +108,45 @@ class MyProxy:
     @concurrent
     def request(self,flow: http.HTTPFlow) -> None:
 
-        global time_stamp
-
         host = flow.request.host
-        address = flow.client_conn.ip_address[0]
+        address = flow.client_conn.ip_address[0].split(':')[3]
         print('HOST ' + host)
         #if (and only if) the host required by the device it's one of the hosts of the organization, contact the trust engine
         if self.services_parses(host) :
             print(self.services_parses(host))
             self.lock.acquire()
-            if address.split(':')[3] not in self.devices:
+            if address not in self.devices:
                 self.lock.release()
-                with portalocker.Lock('./project/pipefile') as file:
-                    file.seek(0)
-                    file.write('http ' + host + ' ' + address.split(':')[3] + ' ' + self.check_risklevel(host))
+
+                self.a_lock.acquire()
+                self.filelock.acquire()
+
+                file = open('./project/pipefile','w')
+                file.write('http ' + host + ' ' + address + ' ' + self.check_risklevel(host) + '\n')
+                file.close()
+
+                self.filelock.release()
+                self.a_lock.release()
     
                 flow.request.host = 'localhost'
                 flow.request.port = 5000
                 flow.request.scheme = 'http'
                 flow.request.headers["Host"] = "localhost"
                 flow.request.set_content("/".encode())
+
             else:
+                
+                self.now = time.localtime()
+                self.c_time = datetime.datetime(self.now[0],self.now[1],self.now[2],self.now[3],self.now[4],self.now[5]).timestamp()
+                last_time = self.devices[address]
+                print(last_time)
                 self.lock.release()
+
+                if self.c_time - float(last_time) > self.time_interval:
+                    self.lock.acquire() 
+                    self.devices.pop(address)
+                    self.lock.release()
+
         
 
 addon = MyProxy()           

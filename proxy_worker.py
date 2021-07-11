@@ -40,7 +40,7 @@ class ProxyWorker (threading.Thread):
                     self.now = time.localtime()
                     self.c_time = datetime.datetime(self.now[0],self.now[1],self.now[2],self.now[3],self.now[4],self.now[5]).timestamp()
                     self.lock.acquire()
-                    self.devices[device_ip] = {str(self.c_time)}
+                    self.devices[device_ip] = str(self.c_time)
                     self.lock.release()
                 break
             except socket.timeout:
