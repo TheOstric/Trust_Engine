@@ -13,6 +13,7 @@ import trust_engine
 import concurrent.futures
 
 risk_level = 0
+user_level = 0
 risk = ''
 ip = ''
 host = ''
@@ -39,7 +40,7 @@ app.config.update(dict(
 hfun = 'sha256'
 mail = Mail(app)
 
-def check_credentials(email, password):
+def check_credentials(email, password, level):
 
     global db_item
     if len(db_item) == 0:
@@ -47,20 +48,23 @@ def check_credentials(email, password):
             with open('./auth.json','r') as json_file:
                 db_item = json.load(json_file)
         else:
-            return False
+            return "Not in the database"
 
     if email not in db_item:
         print(db_item)
-        return False
+        return "Not in the database"
     else:
         salt = db_item.get(email).get('salt')
         hashed = db_item.get(email).get('hashed')
         shashed = hashlib.pbkdf2_hmac(hfun, password.encode(), salt.encode(), 100000)
         if hashed == shashed.hex():
-            return True
+            if db_item[email]["level"] == level:
+                return "True"
+            else:
+                return "Wrong user level"
         else:
             
-            return False
+            return "False"
 
 def identify_level(risk_host, risk_user):
     global risk_level
@@ -106,17 +110,22 @@ def home():
 
 @app.route("/pass_auth")
 def pass_auth():
+    global user_level
+
+    user_level = 0
     return render_template("pass_auth.html")
 
 @app.route('/pass_auth', methods=['POST'])
 def login():
-    global r, host, ip, risk, risk_level, confirmed
+    global r, host, ip, risk, risk_level, confirmed, user_level
+
     email = request.form.get("email")
     print(email)
     password = request.form.get("password")
-    print(check_credentials(email,password))
-    if check_credentials(email,password):
-        risk_level = identify_level(risk,0)
+    
+    result = check_credentials(email,password)
+    if result == "True":
+        risk_level = identify_level(risk,user_level)
         print(risk_level)
         if risk_level == 0:
             t = trust_engine.TrustEngine()
@@ -134,7 +143,55 @@ def login():
         elif risk_level == 2:
             return redirect('http://127.0.0.1/pass_auth/email_a')
     else:
-        flash('Please check your login details and try again.',"danger")
+
+        if result == "False":
+            message = 'Please check your login details and try again.'
+        elif result == "Not in the database":
+            message = 'Your credentials are not in the database, please first register to the system.'
+        elif result == "Wrong user level":
+            message = 'Your credentials correspond to different user level. Please, check another user level for the login.'
+            flash(message)
+            return redirect('http://127.0.0.1:5000/')
+        flash(message)
+        return redirect('http://127.0.0.1:5000/pass_auth')
+
+@app.route('/pass_auth_admin', methods=['POST', 'GET'])
+def login_admin():
+    global r, host, ip, risk, risk_level, confirmed, user_level
+
+    user_level = 1
+    email = request.form.get("email")
+    print(email)
+    password = request.form.get("password")
+    result = check_credentials(email,password)
+    if result == "True":
+        risk_level = identify_level(risk,user_level)
+        print(risk_level)
+        if risk_level == 0:
+            t = trust_engine.TrustEngine()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(t.run,r)
+                print(future.result())
+                if future.result() == 'Allowed':
+                    confirmed = True
+                    return render_template('authorized.html')
+                else:
+                    return render_template('unauthorized.html')
+            
+        elif risk_level == 1:
+            return redirect('http://127.0.0.1:5000/pass_auth/2fa')
+        elif risk_level == 2:
+            return redirect('http://127.0.0.1/pass_auth/email_a')
+    else:
+        if result == "False":
+            message = 'Please check your login details and try again.'
+        elif result == "Not in the database":
+            message = 'Your credentials are not in the database, please first register to the system.'
+        elif result == "Wrong user level":
+            message = 'Your credentials correspond to different user level. Please, check another user level for the login.'
+            flash(message)
+            return redirect('http://127.0.0.1:5000/')
+        flash(message)
         return redirect('http://127.0.0.1:5000/pass_auth')
 
 @app.route('/pass_auth/2fa')

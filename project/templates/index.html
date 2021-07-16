@@ -1,6 +1,38 @@
 <!DOCTYPE html>
 <html>
 
+<style>
+    .container {
+        height: 200px;
+        position: absolute;
+        top: 30%;
+        width: 97%;
+        border: 3px solid green;
+    }
+    
+    .buttonone{
+        margin: 0;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        -ms-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+    }
+
+    .buttontwo {
+        margin: 0;
+        position: absolute;
+        top: 65%;
+        left: 50%;
+        -ms-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+    }
+
+    .button{
+        font-size: large;
+    }
+</style>
+        
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -12,10 +44,22 @@
 </head>
 
 <body>
-    <a href="pass_auth">
-        <button type="button" class="btn btn-primary">
-            WebUser authentication
-        </button>
-    </a>
+    <div class="container">
+        <div class="buttonone">
+            <a href="pass_auth">
+                <button type="button" class="button">
+                    WebUser authentication
+                </button>
+            </a>
+        </div>
+
+        <div class="buttontwo">
+            <a href="pass_auth_admin">
+                <button type="button" class="button">
+                    RootUser authentication
+                </button>
+            </a>
+        </div>
+    </div>
 </body>
 </html>

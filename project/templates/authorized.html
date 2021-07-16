@@ -1,6 +1,29 @@
 <!DOCTYPE html>
 <html>
 
+<style>
+    .container {
+        height: 200px;
+        position: absolute;
+        top: 30%;
+        width: 97%;
+        border: 3px solid green;
+    }
+    
+    .buttonone{
+        margin: 0;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        -ms-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+    }
+
+    .button{
+        font-size: large;
+    }
+</style>
+
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -12,10 +35,18 @@
 </head>
 
 <body>
-    <a href="/">
-        <button type="button" class="btn btn-primary">
-            Continue
-        </button>
-    </a>
+    <div>
+        <h3>Congratulations!</h3>
+        <h4> You have been successfully authenticated, now click on the "Continue" button to go to the page you wanted to visit </h4> 
+    </div>
+    <div class="container">
+        <div class="buttonone">
+            <a href="/">
+                <button type="button" class="button">
+                    Continue
+                </button>
+            </a>
+        </div>
+    </div>
 </body>
 </html>
