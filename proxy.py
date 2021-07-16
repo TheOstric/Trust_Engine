@@ -5,6 +5,7 @@ from threading import Lock, Condition
 import socket
 from mitmproxy import proxy, options
 from mitmproxy.tools.dump import DumpMaster
+from mitmproxy.net.http import Headers
 import os
 import ssl
 import time
@@ -12,10 +13,9 @@ import parser
 import mitmproxy.http
 import sys
 import requests
-import portalocker
 import datetime
 import proxy_worker
-import fasteners
+import traceback
 
 LISTEN_HOST= ''
 LISTEN_PORT = 0
@@ -54,7 +54,7 @@ class MyProxy:
                 IP_SEND = l3[1]
                 PORT_SEND = int(l3[3])
 
-        if(os.path.exists('./config.txt')) and os.path.getsize('./config.txt') > 0:
+        if os.path.exists('./config.txt') and os.path.getsize('./config.txt') > 0:
             with open('./config.txt') as config:
                 lines = config.readlines()
                 self.max_attempts = int(lines[-5].split()[1])
@@ -99,6 +99,14 @@ class MyProxy:
                             domain_names[line.split()[0]] = [line.split()[1]]
                         else:
                             domain_names[line.split()[0]].append(line.split()[1])
+
+                if domain_names.get(domain_name) != None:
+                    return True
+                else:
+                    return False
+
+            else:
+                return False
         else:
             if domain_names.get(domain_name) != None:
                 return True
@@ -112,27 +120,49 @@ class MyProxy:
         address = flow.client_conn.ip_address[0].split(':')[3]
         print('HOST ' + host)
         #if (and only if) the host required by the device it's one of the hosts of the organization, contact the trust engine
+        print(self.services_parses(host))
         if self.services_parses(host) :
-            print(self.services_parses(host))
+            
             self.lock.acquire()
+            print(self.devices)
             if address not in self.devices:
                 self.lock.release()
 
-                self.a_lock.acquire()
-                self.filelock.acquire()
+                r = requests.post("http://127.0.0.1:5000/", data='http ' + host + ' ' + address + ' ' + self.check_risklevel(host))
 
-                file = open('./project/pipefile','w')
-                file.write('http ' + host + ' ' + address + ' ' + self.check_risklevel(host) + '\n')
-                file.close()
+                newUrl = "http://127.0.0.1:5000/"
+                retryCount = 3
+                newResponse = None
+                while True:
+                    try:
+                        newResponse = requests.get(newUrl)
+                    except: 
+                        if retryCount == 0:
+                            print ('Cannot reach new url ' + newUrl)
+                            traceback.print_exc()
+                            return
 
-                self.filelock.release()
-                self.a_lock.release()
-    
-                flow.request.host = 'localhost'
-                flow.request.port = 5000
-                flow.request.scheme = 'http'
-                flow.request.headers["Host"] = "localhost"
-                flow.request.set_content("/".encode())
+                        retryCount -= 1
+                        continue
+                    break
+
+                responseHeaders = Headers()
+
+                if 'Date' in newResponse.headers:
+                    responseHeaders['Date'] = str(newResponse.headers['Date'])
+                if 'Connection' in newResponse.headers:
+                    responseHeaders['Connection'] = str(newResponse.headers['Connection'])
+                if 'Content-Type' in newResponse.headers:
+                    responseHeaders['Content-Type'] = str(newResponse.headers['Content-Type'])
+                if 'Content-Length' in newResponse.headers:
+                    responseHeaders['Content-Length'] = str(newResponse.headers['Content-Length'])
+                if 'Content-Encoding' in newResponse.headers:
+                    responseHeaders['Content-Encoding'] = str(newResponse.headers['Content-Encoding'])
+
+                flow.response = http.HTTPResponse.make(  
+                    status_code=200,
+                    headers=responseHeaders,
+                    content=newResponse.content)
 
             else:
                 
@@ -146,6 +176,44 @@ class MyProxy:
                     self.lock.acquire() 
                     self.devices.pop(address)
                     self.lock.release()
+                    print('ORA')
+                    
+                    newUrl = "http://127.0.0.1:5000/"
+                    retryCount = 3
+                    newResponse = None
+                    while True:
+                        try:
+                            newResponse = requests.get(newUrl)
+                        except: 
+                            if retryCount == 0:
+                                print ('Cannot reach new url ' + newUrl)
+                                traceback.print_exc()
+                                return
+
+                            retryCount -= 1
+                            continue
+                        break
+
+                    responseHeaders = Headers()
+
+                    if 'Date' in newResponse.headers:
+                        responseHeaders['Date'] = str(newResponse.headers['Date'])
+                    if 'Connection' in newResponse.headers:
+                        responseHeaders['Connection'] = str(newResponse.headers['Connection'])
+                    if 'Content-Type' in newResponse.headers:
+                        responseHeaders['Content-Type'] = str(newResponse.headers['Content-Type'])
+                    if 'Content-Length' in newResponse.headers:
+                        responseHeaders['Content-Length'] = str(newResponse.headers['Content-Length'])
+                    if 'Content-Encoding' in newResponse.headers:
+                        responseHeaders['Content-Encoding'] = str(newResponse.headers['Content-Encoding'])
+
+                    flow.response = http.HTTPResponse.make(  
+                        status_code=200,
+                        headers=responseHeaders,
+                        content=newResponse.content)
+
+        if flow.request.host == "127.0.0.1" and flow.request.content == "/":
+            r = requests.post("http://127.0.0.1:5000/", data='http ' + host + ' ' + address + ' ' + self.check_risklevel(host))
 
         
 

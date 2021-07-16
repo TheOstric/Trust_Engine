@@ -20,8 +20,8 @@ data = ''
 r = ''
 confirmed = False
 db_item = {}
-username = "your textmagic username"
-token = "your textmagic token"
+username = ""
+token = ""
 client = TextmagicRestClient(username, token)
 app = Flask(__name__)
 
@@ -29,22 +29,28 @@ random_key = os.urandom(16)
 app.config.update(dict(
     DEBUG = True,
     SECRET_KEY = str(random_key),
-    MAIL_SERVER = "your mail server",
-    MAIL_PORT = 587,
+    MAIL_SERVER = "",
+    MAIL_PORT = "port number for mail service",
     MAIL_USE_TLS = True,
     MAIL_USE_SSL = False,
-    MAIL_USERNAME = "your email",
-    MAIL_PASSWORD = "your email password",
+    MAIL_USERNAME = "",
+    MAIL_PASSWORD = "",
 ))
 hfun = 'sha256'
 mail = Mail(app)
 
-if os.path.exists('./auth.json') and os.path.getsize('./auth.json') > 0:
-    with open('./auth.json','r') as json_file:
-        db_item = json.load(json_file)
-
 def check_credentials(email, password):
-    if email not in db_item: 
+
+    global db_item
+    if len(db_item) == 0:
+        if os.path.exists('./auth.json') and os.path.getsize('./auth.json') > 0:
+            with open('./auth.json','r') as json_file:
+                db_item = json.load(json_file)
+        else:
+            return False
+
+    if email not in db_item:
+        print(db_item)
         return False
     else:
         salt = db_item.get(email).get('salt')
@@ -53,9 +59,12 @@ def check_credentials(email, password):
         if hashed == shashed.hex():
             return True
         else:
-            False
+            
+            return False
 
 def identify_level(risk_host, risk_user):
+    global risk_level
+    print(risk_host + ' ' + str(risk_user))
     if risk_host == 'Low' and risk_user == 0:
         return 0
     
@@ -75,25 +84,24 @@ def identify_level(risk_host, risk_user):
         return 3
 
 
-@app.route("/")
+@app.route("/", methods = ["POST","GET"])
 def home():
-    global r, host, ip, confirmed
+    global r, host, ip, confirmed, risk
     print('CONFIRMED: ' + str(confirmed))
     if confirmed == False:
-        with open('pipefile','r') as file:
-            portalocker.lock(file, portalocker.LOCK_EX)
-            for line in file:
-                p = line
-            portalocker.unlock(file)
-        data = p.split()
-        print(data)
-        risk = data[3]
-        ip = data[2]
-        r = data[0] + ' ' + data[1] + ' ' + data[2]
-        host = data[1]
-
-        return render_template("index.html")
+        if request.method == 'GET':
+            return render_template("index.html")
+        else:
+            data = request.get_data(False,True,False).split()
+            print(data)
+            risk = data[3]
+            print('RISK ' + risk)
+            ip = data[2]
+            r = data[0] + ' ' + data[1] + ' ' + data[2]
+            host = data[1]
+            return render_template("index.html")
     else:
+        confirmed = False
         return redirect('https://' + host)
 
 @app.route("/pass_auth")
@@ -102,12 +110,14 @@ def pass_auth():
 
 @app.route('/pass_auth', methods=['POST'])
 def login():
-    global r, host, ip
-    email = request.form.get('email')
-    password = request.form.get('password')
+    global r, host, ip, risk, risk_level, confirmed
+    email = request.form.get("email")
+    print(email)
+    password = request.form.get("password")
     print(check_credentials(email,password))
-    if True:
-        #risk_level = identify_level(risk,0)
+    if check_credentials(email,password):
+        risk_level = identify_level(risk,0)
+        print(risk_level)
         if risk_level == 0:
             t = trust_engine.TrustEngine()
             with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -116,21 +126,23 @@ def login():
                 if future.result() == 'Allowed':
                     confirmed = True
                     return render_template('authorized.html')
+                else:
+                    return render_template('unauthorized.html')
             
         elif risk_level == 1:
             return redirect('http://127.0.0.1:5000/pass_auth/2fa')
         elif risk_level == 2:
-            return redirect('http://www.inps.it/pass_auth/email_a')
+            return redirect('http://127.0.0.1/pass_auth/email_a')
     else:
         flash('Please check your login details and try again.',"danger")
-        return redirect('http://www.inps.it/pass_auth')
+        return redirect('http://127.0.0.1:5000/pass_auth')
 
 @app.route('/pass_auth/2fa')
 def login_email():
     #generating random token for authentication
     token = pyotp.random_base32()
 
-    msg = Message('Authentication mail with token',sender = 'sending mail address', recipients=['destination mail address'])
+    msg = Message('Authentication mail with token',sender = '', recipients=[''])
     link = url_for('confirm',external = True)
     msg.body = token
     mail.send(msg)
@@ -161,7 +173,7 @@ def login_email_auth():
 
 @app.route('/pass_auth/email_a')
 def login_sms():
-    msg = Message('Authentication mail',sender = 'sending mail address', recipients=['destination mail address'])
+    msg = Message('Authentication mail with token',sender = '', recipients=[''])
     link = url_for('confirm',external = True)
     msg.body = 'Please, click on the following link and then check your phone for the authentication code: {}'.format(link)
     mail.send(msg)
@@ -171,7 +183,7 @@ def login_sms():
 
 @app.route('/pass_auth/sms_a')
 def confirm():
-    msg = client.messages.create(phones= "destination phone number", text = "12345")
+    msg = client.messages.create(phones= "", text = "12345")
     return render_template("login_email.html")
 
 if __name__ == '__main__':
